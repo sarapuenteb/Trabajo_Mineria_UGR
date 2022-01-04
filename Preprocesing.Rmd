@@ -1,0 +1,103 @@
+---
+title: "Preprocesamiento"
+author: "Hodei Zia"
+date: "4/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# Primero cargaremos las librerias necesarias
+
+library(dplyr)
+library(RWeka)
+library(dlookr)
+library(tidyverse)
+```
+### Empezaremos preparando los datos
+
+```{r}
+# Leemos la X
+data = read.csv("Training_set_features.csv",  header=T, stringsAsFactors=TRUE)[,-1]
+
+# Convertimos todas las variables que sean Chr a Factor
+data[sapply(data, is.factor)] <- data.matrix(data[sapply(data, is.factor)])
+
+# Inspeccionamos el dataframe
+head(data)
+summary(data)
+str(data)
+describe(data)
+
+table(data[34])
+```
+```{r}
+# Leemos la Y
+labels = read.csv("Training_set_labels.csv",  header=T)
+
+# Inspeccionamos el dataframe
+head(labels)
+summary(labels)
+str(labels)
+describe(labels)
+```
+
+### Nueva Salida
+
+```{r}
+# Modificamos el fichero de salida
+labels = as.data.frame(labels)
+Y = as.data.frame((mutate(labels, Y = strtoi(gsub(" ", "", paste(labels[,2], labels[,3])), base = 2))))[,c(1,4)]
+head(Y)
+```
+### Missing Values
+
+```{r}
+find_na(data)
+
+# By Column
+na_count <-sapply(data, function(y) (sum(length(which(is.na(y)))) / nrow(data)) * 100)
+data.frame(na_count)
+
+# By Rows
+length(which(rowSums(is.na(data)) >= 10))
+
+# Eliminamos las filas que tengan 10 o mas valores perdidos
+myData <- data[-c(which(rowSums(is.na(data)) >= 10)), ]
+nrow(myData)
+
+print(find_na(data))
+print(find_na(myData))
+
+# Imputacion de valores perdidos por Moda
+for(i in 1:ncol(myData)) {
+  myData[, i] [is.na(myData[, i])] <- mode(myData[, i])
+}
+
+table(myData['health_insurance']) 
+Data_Impu_Moda = ifelse(is.na(myData['health_insurance']), getmode(myData['health_insurance']), myData['health_insurance'])
+table(Data_Impu_Moda['health_insurance'])
+
+```
+
+### Outliers
+
+```{r}
+outliers_counter = function(data){
+  return(length(boxplot.stats(data)$out))
+}
+
+outliers = apply(data, 2, outliers_counter)
+outliers
+
+find_outliers(data)
+
+sapply(c(1:ncol(data)) , function(x) hist(x = data[,x],main = "", xlab = names(data)[x]))
+
+table(data[23])
+
+```
