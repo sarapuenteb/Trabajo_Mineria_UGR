@@ -32,8 +32,6 @@ head(data)
 summary(data)
 str(data)
 describe(data)
-
-table(data[34])
 ```
 ```{r}
 # Leemos la Y
@@ -51,7 +49,8 @@ describe(labels)
 ```{r}
 # Modificamos el fichero de salida
 labels = as.data.frame(labels)
-Y = as.data.frame((mutate(labels, Y = strtoi(gsub(" ", "", paste(labels[,2], labels[,3])), base = 2))))[,c(1,4)]
+Y = as.data.frame((mutate(labels, Y = strtoi(gsub(" ", "", paste(labels[,2], labels[,3])), base = 2))))[,c(4)]
+Y = data.frame(Y)
 head(Y)
 ```
 ### Missing Values
