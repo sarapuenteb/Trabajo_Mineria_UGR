@@ -50,53 +50,98 @@ describe(labels)
 # Modificamos el fichero de salida
 labels = as.data.frame(labels)
 Y = as.data.frame((mutate(labels, Y = strtoi(gsub(" ", "", paste(labels[,2], labels[,3])), base = 2))))[,c(4)]
-Y = data.frame(Y)
+Y = data.frame(Y = as.factor(Y))
 head(Y)
+
+# Metemos la salida junto con la entrada para poder eliminar las filas conjuntamente mas adelante
+dataframe = cbind(data, Y)
+head(dataframe)
+str(dataframe)
+
 ```
+
 ### Missing Values
 
 ```{r}
-find_na(data)
+find_na(dataframe)
 
 # By Column
-na_count <-sapply(data, function(y) (sum(length(which(is.na(y)))) / nrow(data)) * 100)
+na_count <-sapply(dataframe, function(y) (sum(length(which(is.na(y)))) / nrow(dataframe)) * 100)
 data.frame(na_count)
 
+# Eliminamos la columna health_insurance por tener un 46% de valores perdidos
+data_not_15 = dataframe[,-15]
+
 # By Rows
-length(which(rowSums(is.na(data)) >= 10))
+length(which(rowSums(is.na(dataframe)) >= 10))
 
 # Eliminamos las filas que tengan 10 o mas valores perdidos
-myData <- data[-c(which(rowSums(is.na(data)) >= 10)), ]
+myData <- data_not_15[-c(which(rowSums(is.na(data_not_15)) >= 10)), ]
+myData = as.data.frame(lapply(myData, as.numeric))
 nrow(myData)
 
-print(find_na(data))
-print(find_na(myData))
-
-# Imputacion de valores perdidos por Moda
+# Imputacion de valores perdidos
 for(i in 1:ncol(myData)) {
-  myData[, i] [is.na(myData[, i])] <- mode(myData[, i])
+  myData[ , i][is.na(myData[ , i])] <- median(myData[ , i], na.rm=TRUE)
+}
+find_na(myData)
+
+# Funcion para calcular la moda
+calc_mode <- function(x){
+  
+  # List the distinct / unique values
+  distinct_values <- unique(x)
+  
+  # Count the occurrence of each distinct value
+  distinct_tabulate <- tabulate(match(x, distinct_values))
+  
+  # Return the value with the highest occurrence
+  distinct_values[which.max(distinct_tabulate)]
 }
 
-table(myData['health_insurance']) 
-Data_Impu_Moda = ifelse(is.na(myData['health_insurance']), getmode(myData['health_insurance']), myData['health_insurance'])
-table(Data_Impu_Moda['health_insurance'])
+# Aplicamos la funcion y cambiamos cada NA por su moda
+myData = myData %>% 
+  mutate(across(everything(), ~replace_na(.x, calc_mode(.x))))
+str(myData)
+find_na(myData)
+
+# Lo que hemos conseguido hasta aqui es:
+# - Eliminar la columna 'health_insurance' por tener un 46% de NA
+# - Eliminar todas aquellas filas con 10 o mas NA
+# - Imputar en donde quedaban NA el valor de la moda de dicha columna
 
 ```
 
-### Outliers
+### Matriz de Correlaciones
 
 ```{r}
-outliers_counter = function(data){
-  return(length(boxplot.stats(data)$out))
-}
+myData %>%
+  correlate() %>%
+  arrange(desc(abs(coef_corr)))
 
-outliers = apply(data, 2, outliers_counter)
-outliers
+# La mayor de nuestras correlaciones es de 61%, lo cual no es suficiente como para eliminar alguna de las variables
 
-find_outliers(data)
+```
 
-sapply(c(1:ncol(data)) , function(x) hist(x = data[,x],main = "", xlab = names(data)[x]))
+### Prueba con clasificador HODEI
 
-table(data[23])
+```{r}
+myData['Y'] <- lapply(myData['Y'] , factor)
+
+train = sample(1:nrow(myData),2*nrow(myData)/3)
+test = myData[-train,]
+
+model.Ripper = JRip(Y~., myData, subset=train)
+str(myData)
+summary(model.Ripper)
+
+
+model.Ripper.pred = predict(model.Ripper, newdata = test)
+
+# Acierto
+(sum(model.Ripper.pred == test[,5])/nrow(test)*100)
+
+
+model.Ripper
 
 ```
