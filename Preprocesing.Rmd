@@ -17,6 +17,8 @@ library(dplyr)
 library(RWeka)
 library(dlookr)
 library(tidyverse)
+library(DescTools)
+library(mice)
 ```
 ### Empezaremos preparando los datos
 
@@ -80,6 +82,12 @@ myData <- data_not_15[-c(which(rowSums(is.na(data_not_15)) >= 10)), ]
 myData = as.data.frame(lapply(myData, as.numeric))
 nrow(myData)
 
+
+myData_moda = myData %>% 
+  mutate(across(everything(), ~replace_na(.x, Mode(.x, na.rm=TRUE))))
+```
+
+```{r}
 # Imputacion de valores perdidos
 for(i in 1:ncol(myData)) {
   myData[ , i][is.na(myData[ , i])] <- median(myData[ , i], na.rm=TRUE)
@@ -104,6 +112,7 @@ myData = myData %>%
   mutate(across(everything(), ~replace_na(.x, calc_mode(.x))))
 str(myData)
 find_na(myData)
+
 
 # Lo que hemos conseguido hasta aqui es:
 # - Eliminar la columna 'health_insurance' por tener un 46% de NA
